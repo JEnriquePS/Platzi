@@ -1,12 +1,19 @@
 from pydantic import BaseModel
 
 
-class Customer(BaseModel):
-    id: int
+class CustomerBase(BaseModel):
     name: str
     description: str | None
     email: str
     age: int
+
+
+class CustomerCreate(CustomerBase):
+    pass
+
+
+class Customer(CustomerBase):
+    id: int | None = None
 
 
 class Transaction(BaseModel):
@@ -22,5 +29,5 @@ class Invoice(BaseModel):
     total: float
 
     @property
-    def total(self):
+    def amount_total(self):
         return sum(transaction.ammount for transaction in self.transactions)
