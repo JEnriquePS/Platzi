@@ -1,12 +1,13 @@
 import zoneinfo
 from datetime import datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
+from sqlmodel import select
 
 from models import Customer, CustomerCreate, Transaction, Invoice
+from db import SessionDep, create_all_tables
 
-
-app = FastAPI()
+app = FastAPI(lifespan=create_all_tables)
 
 
 @app.get("/")
@@ -22,6 +23,7 @@ country_timezones = {
     "MX": "America/Mexico_City",
 }
 
+
 @app.get("/time/{iso_code}")
 async def time(iso_code: str):
     iso = iso_code.upper()
@@ -31,17 +33,41 @@ async def time(iso_code: str):
 
 db_customers: list[Customer] = []
 
+
 @app.post("/customers", response_model=Customer)
-async def create_customer(customer_data: CustomerCreate):
+async def create_customer(customer_data: CustomerCreate, session: SessionDep):
     customer = Customer.model_validate(customer_data.model_dump())
-    # TODO: DB
-    customer.id = len(db_customers)
-    db_customers.append(customer)
+    session.add(customer)
+    session.commit()
+    session.refresh(customer)
     return customer
 
+
 @app.get("/customers", response_model=list[Customer])
-async def list_customer():
-    return db_customers
+async def list_customer(session: SessionDep):
+    return session.exec(select(Customer)).all()
+
+
+@app.get("/customers/{customer_id}", response_model=Customer)
+async def get_customer(customer_id: int, session: SessionDep):
+    customer_db = session.get(Customer, customer_id)
+    if not customer_db:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Customer not found")
+    return customer_db
+
+
+@app.delete("/customers/{customer_id}")
+async def delete_customer(customer_id: int, session: SessionDep):
+    customer_db = session.get(Customer, customer_id)
+    if not customer_db:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Customer not found")
+    session.delete(customer_db)
+    session.commit()
+    return {"detail": "Customer deleted"}
+
+
 @app.post("/transactions")
 async def create_transaction(transaction_data: Transaction):
     return transaction_data
