@@ -2,3 +2,4 @@
 Cursos Platzi
 Fastapi
 C#
+React
