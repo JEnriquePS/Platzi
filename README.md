@@ -4,3 +4,4 @@ Fastapi
 C#
 React
 Vite
+Rust
